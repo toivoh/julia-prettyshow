@@ -48,7 +48,7 @@ This should output to `io` using `pshow/pprint/pprintln`.
 
 For slightly fancier pretty-printing,
 there is also a newline callback associated with each nested
-`PrettyIO` context (see the code). I've used in 
+`PrettyIO` context (see the code). I've used this in 
 [another project](http://github.com/toivoh/julia-kernels)
 to implement pretty printing of tree views:
 
