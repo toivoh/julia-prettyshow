@@ -197,7 +197,7 @@ end
 println()
 fname = "unnecessarily_long_function_name"
 pprintln("for ", {"i=1:n\n", 
-             "for ", {"j=1:m", "\n",
+             "for ", {"j=1:m\n",
                  "X[",{"i, j"},"] = ",
                      "A[",{"$fname(i)"},"]", " * ",
                      "B[",{"$fname(j)"},"]"

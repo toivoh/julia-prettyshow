@@ -9,7 +9,7 @@ Usage
 -----
 
 Use `pshow`,`pprint`, and `pprintln` more or less as you would `show`,`print`, and `println`.   
-A pretty printing context can be gien as first argument:
+A pretty printing context can be given as first argument:
 
     pprint(io::PrettyIO, x)
 
@@ -17,7 +17,7 @@ Automatic indentation is supported by nesting arguments to `pprint` within vecto
 
     fname = "unnecessarily_long_function_name"
     pprintln("for ", {"i=1:n\n", 
-                 "for ", {"j=1:m", "\n",
+                 "for ", {"j=1:m\n",
                      "X[",{"i, j"},"] = ",
                          "A[",{"$fname(i)"},"]", " * ",
                          "B[",{"$fname(j)"},"]"
@@ -33,7 +33,8 @@ prints
         end
     end
 
-By anotating the text with the nesting structure, `pprint` can do the right
+By annotating the text with the nesting structure like this,
+`pprint` can do the right
 thing at line breaks, even within the index `[$fname(j)]`.
 `pprint` also tries not to avoid breaking individual strings across lines.
 
@@ -45,9 +46,11 @@ To implement pretty-printing for a type `T`, it should be enough to overload
 
 This should output to `io` using `pshow/pprint/pprintln`.
 
-There is also a newline callback associated with each nested `PrettyIO` context, (see the code) which I've used in 
+For slightly fancier pretty-printing,
+there is also a newline callback associated with each nested
+`PrettyIO` context (see the code). I've used in 
 [another project](http://github.com/toivoh/julia-kernels)
-another project to implement pretty printing of tree views:
+to implement pretty printing of tree views:
 
     A=CallNode(
      +- .op=SymNode(:+, :call), 
