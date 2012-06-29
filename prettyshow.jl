@@ -44,7 +44,7 @@ function pprint(io::PrettyIO, s::String)
     for c in s; pprint(io, c); end
 end
 pprint(io::PrettyIO, arg::Any) = pshow(io, arg)
-pprint(io::PrettyIO, args...) = foreach(arg->pprint(io, arg), args)
+pprint(io::PrettyIO, args...) = (for arg in args; pprint(io, arg); end)
 
 pshow(io::PrettyIO, arg::Any) = pprint(io, sshow(arg))
 
