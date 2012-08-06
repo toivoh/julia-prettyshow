@@ -104,7 +104,7 @@ function treeify_node!(trees::Vector{ObjNode}, node::ObjNode)
 end
 function treeify!(trees::Vector{ObjNode}, node::ObjNode)
     if !node.reused ||
-      (is_immutable_to_rshow(node.obj) && (0 <= node.strlen <= 10))
+      (is_immutable_to_rshow(node.obj) && (0 <= node.strlen <= 11))
         # node will be printed inline
         node.reused = false
         treeify_node!(trees, node)
