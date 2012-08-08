@@ -112,7 +112,8 @@ defer_show_body(args...) = defer_io(show_body, args...)
 
 function show(io::IO, ex::Expr)
     const infix = Set(:(=), doublecolon, :(:), :(->), :(=>), :(&&), :(||))
-    const parentypes = {:call=>("(",")"), :ref=>("[","]"), :curly=>("{","}")}
+    const calltypes  = {:ref =>('[',']'), :curly =>('{','}'), :call=>('(',')')}
+    const parentypes = {:vcat=>('[',']'), :cell1d=>('{','}')}
 
     head = ex.head
     args = ex.args
@@ -125,11 +126,19 @@ function show(io::IO, ex::Expr)
         end
     elseif has(infix, head) && nargs == 2       # infix operations
         print(io, indent(defer_show(args[1]), head, defer_show(args[2])))
-    elseif has(parentypes, head) && nargs >= 1  # :call/:ref/:curly
-        show(io, args[1]); 
+    elseif is(head, :tuple)
+        if nargs == 1; print(io, inparens(defer_show(args[1]), ','))
+        else           print(io, inparens(comma_list(args...)))
+        end
+    elseif has(parentypes, head)                # :vcat/:cell1d
         print(io, parentypes[head][1], 
-              indent(comma_list(args[2:end]...)),
+              indent(comma_list(args...)),
               parentypes[head][2])
+    elseif has(calltypes, head) && nargs >= 1  # :call/:ref/:curly
+        show(io, args[1]); 
+        print(io, calltypes[head][1], 
+              indent(comma_list(args[2:end]...)),
+              calltypes[head][2])
     elseif head == :comparison && nargs >= 2    # :comparison
         print(io, inparens({defer_show(arg) for arg in args}...))
     elseif head == :(...) && nargs == 1
