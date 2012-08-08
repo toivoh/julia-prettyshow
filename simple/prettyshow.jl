@@ -1,6 +1,7 @@
 
 module PrettyShow
 import Base.*
+export defer_io, defer_print, defer_show, indent, paren_block, comma_list
 
 
 # ---- Deferred IO for formatting etc -----------------------------------------
