@@ -4,10 +4,10 @@ julia-prettyshow v0.1
 The `PrettyShow` module is a small toolbox for pretty-printing in Julia.
 It contains
 
-    * a small set of functions to help produce formated printouts,
-      notably using nested indentation,
-    * an improved `show()` implementation for Julia abstract syntax trees 
-      (AST:s), i e the `Expr` type.
+ * a small set of functions to help produce formated printouts,
+   notably using nested indentation,
+ * an improved `show()` implementation for Julia abstract syntax trees 
+   (AST:s), i e the `Expr` type.
 
 AST pretty printing
 -------------------
