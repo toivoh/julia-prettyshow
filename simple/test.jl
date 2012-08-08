@@ -175,8 +175,9 @@ end  # quote
 
 
 require("prettyshow.jl")
+import PrettyShow
 
 for ex in code.args
     println(ex)
-    if !is_expr(ex, :line); println(); end
+    if !PrettyShow.is_expr(ex, :line); println(); end
 end
