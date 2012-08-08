@@ -196,7 +196,9 @@ end  # quote
 require("prettyshow.jl")
 import PrettyShow
 
+const is_expr = PrettyShow.is_expr
+
 for ex in code.args
-    println(ex)
-    if !PrettyShow.is_expr(ex, :line); println(); end
+    print(ex)
+    if is_expr(ex, :line); println(); end
 end
