@@ -111,8 +111,10 @@ show_body(io::IO, arg, body) = show_body(io, {arg}, body)
 defer_show_body(args...) = defer_io(show_body, args...)
 
 function show(io::IO, ex::Expr)
-    const infix = Set(:(=), :(:), :(<:), :(->), :(=>), :(&&), :(||),
-                      doublecolon)
+    const infix = Set(
+        :(+=), :(-=), :(*=), :(/=), :(\=), :(&=), :(|=), :($=), 
+        :(>>>=), :(>>=), :(<<=),
+        :(=), :(:), :(<:), :(->), :(=>), :(&&), :(||), doublecolon)
     const calltypes  = {:ref =>('[',']'), :curly =>('{','}'), :call=>('(',')')}
     const parentypes = {:vcat=>('[',']'), :cell1d=>('{','}')}
 
