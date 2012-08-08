@@ -6,9 +6,9 @@ export defer_io, defer_print, defer_show, indent, paren_block, comma_list
 
 # ---- Deferred IO for formatting etc -----------------------------------------
 
-# Canned io action: print(io, defer_io(f, args...))
-# does the same as f(io, args...)
-defer_io(f, extra_args...) = DeferredIO(f, extra_args)
+# Canned io action: print(io, defer_io(f, rest_args...))
+# does the same as f(io, rest_args...)
+defer_io(f, rest_args...) = DeferredIO(f, rest_args)
 
 defer_print()        = ""
 defer_print(arg)     = arg
