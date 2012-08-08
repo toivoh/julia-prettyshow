@@ -1,7 +1,17 @@
 
 code = quote
 
-# ---- print/show markup and helpers ------------------------------------------
+# ---- print/show helpers and markup ------------------------------------------
+
+function show_comma_list(io::IO, first, rest...)
+    show(io, first)
+    for arg in rest; print(io, ", "); show(io, arg); end
+end
+show_comma_list(io::IO) = nothing
+
+type Indented
+    item  # value to be printed indented
+end
 
 type DeferredIO
     f::Function
@@ -11,24 +21,19 @@ print(io::IO, d::DeferredIO) = d.f(io, d.extra_args...)
 
 defer_io(f, extra_args...) = DeferredIO(f, extra_args)
 
+defer_print()        = ""
+defer_print(arg)     = arg
 defer_print(args...) = defer_io(print, args...)
 defer_show(arg)      = defer_io(show, arg)
 
+indent(arg)          = Indented(arg)
+indent(args...)      = Indented(defer_print(args...))
 
-type Indented
-    item  # value to be printed indented
-end
-indent(arg) = Indented(arg)
-indent(args...) = Indented(defer_print(args...))
+inparens(args...)    = defer_print('(', indent(args...), ')')
 
-inparens(args...) = defer_print('(', indent(args[2:end-1]), ')')
+comma_list()         = ""
+comma_list(args...)  = defer_io(show_comma_list, args...)
 
-comma_list() = ""
-function comma_list(first, rest...)
-    items = {defer_show(first)}
-    for arg in rest; push(items, ", "); push(items, defer_show(arg)); end
-    defer_print(items...)
-end
 
 
 # ---- IndentIO: indentation aware wrapper IO ---------------------------------
@@ -81,7 +86,7 @@ const doublecolon = symbol("::")
 # ---- Expr prettyprinting ----------------------------------------------------
 
 function lnshow_bodyline(io::IO, ex)
-    if !is_expr(ex, :line); print(io, "\n"); end
+    if !is_expr(ex, :line); print(io, '\n'); end
     show(io, ex)
 end
 
@@ -104,39 +109,55 @@ show_body(io::IO, arg, body) = show_body(io, {arg}, body)
 defer_show_body(args...) = defer_io(show_body, args...)
 
 function show(io::IO, ex::Expr)
-    const infix = Set(:(=), doublecolon, :(:), :(->), :(=>), :(&&), :(||))
-    const parentypes = {:call=>("(",")"), :ref=>("[","]"), :curly=>("{","}")}
+    const infix = Set(:(=), :(:), :(<:), :(->), :(=>), :(&&), :(||),
+                      doublecolon)
+    const calltypes  = {:ref =>('[',']'), :curly =>('{','}'), :call=>('(',')')}
+    const parentypes = {:vcat=>('[',']'), :cell1d=>('{','}')}
 
     head = ex.head
     args = ex.args
     nargs = length(args)
 
     if head == :(.)
-        print(io, indent(args[1], ".",
-            is_quoted(args[2]) ? unquoted(args[2]) : inparens(args[2])
-        ))
+        print(io, indent(args[1], '.'))
+        if is_quoted(args[2]); show(io, unquoted(args[2]))
+        else print(io, inparens(defer_show(args[2])))
+        end
     elseif has(infix, head) && nargs == 2       # infix operations
-        print(io, indent(args[1], head, args[2]))
-    elseif has(parentypes, head) && nargs >= 1  # :call/:ref/:curly
-        print(io, args[1], parentypes[head][1], 
-              indent(comma_list(args[2:end]...)),
+        print(io, indent(defer_show(args[1]), head, defer_show(args[2])))
+    elseif is(head, :tuple)
+        if nargs == 1; print(io, inparens(defer_show(args[1]), ','))
+        else           print(io, inparens(comma_list(args...)))
+        end
+    elseif has(parentypes, head)                # :vcat/:cell1d
+        print(io, parentypes[head][1], 
+              indent(comma_list(args...)),
               parentypes[head][2])
+    elseif has(calltypes, head) && nargs >= 1  # :call/:ref/:curly
+        show(io, args[1]); 
+        print(io, calltypes[head][1], 
+              indent(comma_list(args[2:end]...)),
+              calltypes[head][2])
     elseif head == :comparison && nargs >= 2    # :comparison
-        print(io, inparens(args...))
+        print(io, inparens({defer_show(arg) for arg in args}...))
+    elseif head == :(...) && nargs == 1
+        show(io, args[1]); print(io, "...")
     elseif (nargs == 1 && contains([:return, :abstract, :const], head)) ||
                           contains([:local, :global], head)
         print(io, head, ' ', indent(comma_list(args...)))
     elseif head == :typealias && nargs == 2
-        print(io, head, ' ', indent(args[1], ' ', args[2]))
+        print(io, head, ' ', indent(
+            defer_show(args[1]), ' ', defer_show(args[2])
+        ))
     elseif (head == :quote) && (nargs==1)       # :quote
-        pshow_quoted_expr(io, args[1])
+        show_quoted_expr(io, args[1])
     elseif (head == :line) && (1 <= nargs <= 2) # :line
         if nargs == 1; print(io, "\t#  line ", args[1], ':')
         else;          print(io, "\t#  ", args[2], ", line ", args[1], ':')
         end
     elseif head == :if && nargs == 3  # if/else
         print(io, 
-            "if ", defer_show_body(args[1], args[2]),
+            "if ",     defer_show_body(args[1], args[2]),
             "\nelse ", defer_show_body(args[3]),
             "\nend")
     elseif head == :try && nargs == 3 # try[/catch]
@@ -146,30 +167,28 @@ function show(io::IO, ex::Expr)
         end
         print(io, "\nend")
     elseif head == :let               # :let 
-        print(io, "let ", 
-            defer_show_body(args[2:end], args[1]), "\nend")
+        print(io, "let ", defer_show_body(args[2:end], args[1]), "\nend")
     elseif head == :block
         print(io, "begin ", defer_show_body(ex), "\nend")
     elseif contains([:for, :while, :function, :if, :type], head) && nargs == 2
-        print(io, string(head), " ", 
-            defer_show_body(args[1], args[2]), "\nend")
+        print(io, head, ' ', defer_show_body(args[1], args[2]), "\nend")
     else
         print(io, head, inparens(comma_list(args...)))
     end
 end
 
 # show ex as if it were quoted
-function pshow_quoted_expr(io::IO, sym::Symbol)
+function show_quoted_expr(io::IO, sym::Symbol)
     if is(sym,:(:)) || is(sym,:(==)); print(io, ":($sym)")        
     else                              print(io, ":$sym")        
     end
 end
-function pshow_quoted_expr(io::IO, ex::Expr)
+function show_quoted_expr(io::IO, ex::Expr)
     if ex.head == :block; print(io, "quote ", defer_show_body(ex), "\nend")
-    else                  print(io, "quote", inparens(ex))
+    else                  print(io, "quote", inparens(defer_show(ex)))
     end
 end
-pshow_quoted_expr(io::IO, ex) = print(io, ':', inparens(defer_show(ex)))
+show_quoted_expr(io::IO, ex) = print(io, ':', inparens(defer_show(ex)))
 
 end  # quote
 
