@@ -1,4 +1,6 @@
 
+code = quote
+
 # ---- print/show markup and helpers ------------------------------------------
 
 type DeferredIO
@@ -9,7 +11,6 @@ print(io::IO, d::DeferredIO) = d.f(io, d.extra_args...)
 
 defer_io(f, extra_args...) = DeferredIO(f, extra_args)
 
-defer_print(arg)     = arg
 defer_print(args...) = defer_io(print, args...)
 defer_show(arg)      = defer_io(show, arg)
 
@@ -20,7 +21,7 @@ end
 indent(arg) = Indented(arg)
 indent(args...) = Indented(defer_print(args...))
 
-inparens(args...) = defer_print('(', indent(args...), ')')
+inparens(args...) = defer_print('(', indent(args[2:end-1]), ')')
 
 comma_list() = ""
 function comma_list(first, rest...)
@@ -122,8 +123,6 @@ function show(io::IO, ex::Expr)
               parentypes[head][2])
     elseif head == :comparison && nargs >= 2    # :comparison
         print(io, inparens(args...))
-    elseif head == :(...) && nargs == 1
-        print(io, args[1], "...")
     elseif (nargs == 1 && contains([:return, :abstract, :const], head)) ||
                           contains([:local, :global], head)
         print(io, head, ' ', indent(comma_list(args...)))
@@ -171,3 +170,13 @@ function pshow_quoted_expr(io::IO, ex::Expr)
     end
 end
 pshow_quoted_expr(io::IO, ex) = print(io, ':', inparens(defer_show(ex)))
+
+end  # quote
+
+
+require("prettyshow.jl")
+
+for ex in code.args
+    println(ex)
+    if !is_expr(ex, :line); println(); end
+end
