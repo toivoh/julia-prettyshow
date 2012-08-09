@@ -120,7 +120,7 @@ function show(io::IO, ex::Expr)
     args = ex.args
     nargs = length(args)
 
-    if head == :(.)
+    if is(head, :(.))
         print(io, indent(args[1], '.'))
         if is_quoted(args[2]); show(io, unquoted(args[2]))
         else print(io, paren_block(defer_show(args[2])))
@@ -140,40 +140,46 @@ function show(io::IO, ex::Expr)
         print(io, calltypes[head][1], 
               indent(comma_list(args[2:end]...)),
               calltypes[head][2])
-    elseif head == :comparison && nargs >= 2    # :comparison
+    elseif is(head, :comparison) && nargs >= 2    # :comparison
         print(io, paren_block({defer_show(arg) for arg in args}...))
-    elseif head == :(...) && nargs == 1
+    elseif is(head, :(...)) && nargs == 1
         show(io, args[1]); print(io, "...")
     elseif (nargs == 1 && contains([:return, :abstract, :const], head)) ||
                           contains([:local, :global], head)
         print(io, head, ' ', indent(comma_list(args...)))
-    elseif head == :typealias && nargs == 2
+    elseif is(head, :typealias) && nargs == 2
         print(io, head, ' ', indent(
             defer_show(args[1]), ' ', defer_show(args[2])
         ))
-    elseif (head == :quote) && (nargs==1)       # :quote
+    elseif is(head, :quote) && nargs == 1       # :quote
         show_quoted_expr(io, args[1])
-    elseif (head == :line) && (1 <= nargs <= 2) # :line
+    elseif is(head, :line) && (1 <= nargs <= 2) # :line
         if nargs == 1; print(io, "\t#  line ", args[1], ':')
         else;          print(io, "\t#  ", args[2], ", line ", args[1], ':')
         end
-    elseif head == :if && nargs == 3  # if/else
+    elseif is(head, :if) && nargs == 3  # if/else
         print(io, 
             "if ",     defer_show_body(args[1], args[2]),
             "\nelse ", defer_show_body(args[3]),
             "\nend")
-    elseif head == :try && nargs == 3 # try[/catch]
+    elseif is(head, :try) && nargs == 3 # try[/catch]
         print(io, "try ", defer_show_body(args[1]))
         if !(is(args[2], false) && is_expr(args[3], :block, 0))
             print(io, "\ncatch ", defer_show_body(args[2], args[3]))
         end
         print(io, "\nend")
-    elseif head == :let               # :let 
+    elseif is(head, :let)               # :let 
         print(io, "let ", defer_show_body(args[2:end], args[1]), "\nend")
-    elseif head == :block
+    elseif is(head, :block)
         print(io, "begin ", defer_show_body(ex), "\nend")
     elseif contains([:for, :while, :function, :if, :type], head) && nargs == 2
         print(io, head, ' ', defer_show_body(args[1], args[2]), "\nend")
+    elseif is(head, :null)
+        print(io, "nothing")
+    elseif is(head, :gotoifnot)
+        print(io, "unless ", defer_show(args[1]), " goto ",defer_show(args[2]))
+    elseif is(head, :string)
+        show(io, args[1])
     else
         print(io, head, paren_block(comma_list(args...)))
     end
@@ -186,8 +192,8 @@ function show_quoted_expr(io::IO, sym::Symbol)
     end
 end
 function show_quoted_expr(io::IO, ex::Expr)
-    if ex.head == :block; print(io, "quote ", defer_show_body(ex), "\nend")
-    else                  print(io, "quote", paren_block(defer_show(ex)))
+    if is(ex.head, :block); print(io, "quote ", defer_show_body(ex), "\nend")
+    else                    print(io, "quote",  paren_block(defer_show(ex)))
     end
 end
 show_quoted_expr(io::IO, ex) = print(io, ':', paren_block(defer_show(ex)))
