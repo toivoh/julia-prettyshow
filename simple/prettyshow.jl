@@ -108,12 +108,12 @@ function show_body_lines(io::IO, ex)
 end
 
 
-const infix = Set(
+const _expr_infix = Set(
     :(+=), :(-=), :(*=), :(/=), :(\=), :(&=), :(|=), :($=), 
     :(>>>=), :(>>=), :(<<=),
     :(=), :(:), :(<:), :(->), :(=>), :(&&), :(||), symbol("::"))
-const calltypes  = {:ref =>('[',']'), :curly =>('{','}'), :call=>('(',')')}
-const parentypes = {:vcat=>('[',']'), :cell1d=>('{','}')}
+const _expr_calls  = {:ref =>('[',']'), :curly =>('{','}'), :call=>('(',')')}
+const _expr_parens = {:vcat=>('[',']'), :cell1d=>('{','}')}
 
 function show(io::IO, ex::Expr)
     head = ex.head
@@ -125,21 +125,21 @@ function show(io::IO, ex::Expr)
         if is_quoted(args[2]); show(io, unquoted(args[2]))
         else print(io, paren_block(defer_show(args[2])))
         end
-    elseif has(infix, head) && nargs == 2       # infix operations
+    elseif has(_expr_infix, head) && nargs == 2       # infix operations
         print(io, indent(defer_show(args[1]), head, defer_show(args[2])))
     elseif is(head, :tuple)
         if nargs == 1; print(io, paren_block(defer_show(args[1]), ','))
         else           print(io, paren_block(comma_list(args...)))
         end
-    elseif has(parentypes, head)                # :vcat/:cell1d
-        print(io, parentypes[head][1], 
+    elseif has(_expr_parens, head)                # :vcat/:cell1d
+        print(io, _expr_parens[head][1], 
               indent(comma_list(args...)),
-              parentypes[head][2])
-    elseif has(calltypes, head) && nargs >= 1  # :call/:ref/:curly
+              _expr_parens[head][2])
+    elseif has(_expr_calls, head) && nargs >= 1  # :call/:ref/:curly
         show(io, args[1]); 
-        print(io, calltypes[head][1], 
+        print(io, _expr_calls[head][1], 
               indent(comma_list(args[2:end]...)),
-              calltypes[head][2])
+              _expr_calls[head][2])
     elseif is(head, :comparison) && nargs >= 2    # :comparison
         print(io, paren_block({defer_show(arg) for arg in args}...))
     elseif is(head, :(...)) && nargs == 1
