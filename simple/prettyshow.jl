@@ -77,6 +77,10 @@ show(io::IndentIO, x::Symbol)  = print(io, string(x))
 is_expr(ex, head::Symbol) = (isa(ex, Expr) && (ex.head == head))
 is_expr(ex, head::Symbol, n::Int) = is_expr(ex, head) && length(ex.args) == n
 
+is_linenumber(ex::LineNumberNode) = true
+is_linenumber(ex::Expr)           = is(ex.head, :line)
+is_linenumber(ex)                 = false
+
 is_quoted(ex::QuoteNode) = true
 is_quoted(ex::Expr)      = is_expr(ex, :quote, 1)
 is_quoted(ex)            = false
@@ -102,7 +106,7 @@ defer_show_body(args...) = defer_io(show_body, args...)
 function show_body_lines(io::IO, ex)
     args = is_expr(ex, :block) ? ex.args : {ex}
     for arg in args
-        if !is_expr(arg, :line); print(io, '\n'); end
+        if !is_linenumber(arg); print(io, '\n'); end
         show(io, arg)
     end
 end
