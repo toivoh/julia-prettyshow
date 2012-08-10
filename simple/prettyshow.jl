@@ -1,6 +1,9 @@
 
 module PrettyShow
+
 import Base.*
+const show_expr_type = Base.show_expr_type
+
 export defer_io, defer_print, defer_show, indent, paren_block, comma_list
 
 
@@ -91,6 +94,17 @@ unquoted(ex::Expr)      = (@assert is_expr(ex, :quote, 1); ex.args[1])
 
 # ---- Expr prettyprinting ----------------------------------------------------
 
+show_linenumber(io::IO, line)       = print(io,"\t#  line ",line,':')
+show_linenumber(io::IO, line, file) = print(io,"\t#  ",file,", line ",line,':')
+
+show(io::IO, e::SymbolNode) = (print(io, e.name); show_expr_type(io, e.typ))
+show(io::IO, e::LineNumberNode) = show_linenumber(io, e.line)
+show(io::IO, e::LabelNode)      = print(io, e.label, ": ")
+show(io::IO, e::GotoNode)       = print(io, "goto ", e.label)
+show(io::IO, e::TopNode)        = print(io, "top(", e.name, ')')
+show(io::IO, e::QuoteNode)      = show_quoted_expr(io, e.value)
+
+
 # Show arguments of a block, and then body
 function show_body(io::IO, args::Vector, body)
     print(io, indent(
@@ -158,9 +172,7 @@ function show(io::IO, ex::Expr)
     elseif is(head, :quote) && nargs == 1       # :quote
         show_quoted_expr(io, args[1])
     elseif is(head, :line) && (1 <= nargs <= 2) # :line
-        if nargs == 1; print(io, "\t#  line ", args[1], ':')
-        else;          print(io, "\t#  ", args[2], ", line ", args[1], ':')
-        end
+        show_linenumber(io, args...)
     elseif is(head, :if) && nargs == 3  # if/else
         print(io, 
             "if ",     defer_show_body(args[1], args[2]),
@@ -187,6 +199,7 @@ function show(io::IO, ex::Expr)
     else
         print(io, head, paren_block(comma_list(args...)))
     end
+    show_expr_type(io, ex.typ)
 end
 
 # show ex as if it were quoted
