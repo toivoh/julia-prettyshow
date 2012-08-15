@@ -22,3 +22,6 @@ pprint(io, {
 
 @pprint(io, head, ' ', [@io comma_list(args...)])
 @pprint(io, head, ' ', { [comma_list](args...) })
+
+@pprint(io, [indent]{ [show](args[1]), head, [show](args[2]) })
+@pprint(io, head, ' ', [indent]{ [comma_list](args...) })
