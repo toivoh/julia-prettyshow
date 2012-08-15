@@ -11,36 +11,9 @@ macro expect(pred)
     :( ($esc(pred)) ? nothing : error($"error: expected $pred == true") )
 end
 
-# ---- Expr decoding helpers --------------------------------------------------
-
-is_expr(ex, head::Symbol) = (isa(ex, Expr) && (ex.head == head))
-is_expr(ex, head::Symbol, n::Int) = is_expr(ex, head) && length(ex.args) == n
-
-is_linenumber(ex::LineNumberNode) = true
-is_linenumber(ex::Expr)           = is(ex.head, :line)
-is_linenumber(ex)                 = false
-
-is_quoted(ex::QuoteNode) = true
-is_quoted(ex::Expr)      = is_expr(ex, :quote, 1)
-is_quoted(ex)            = false
-
-unquoted(ex::QuoteNode) = ex.value
-unquoted(ex::Expr)      = ex.args[1]
-
-# ---- formatting helpers -----------------------------------------------------
-
-function show_comma_list(io::IO, first, rest...)
-    show(io, first)
-    for arg in rest; print(io, ", "); show(io, arg); end
-end
-show_comma_list(io::IO) = nothing
-
 # ---- IndentIO: indentation aware wrapper IO ---------------------------------
 
 const indent_width = 4
-
-type Indent; end
-const indent = Indent()
 
 type IndentIO <: IO
     sink::IO
@@ -48,7 +21,9 @@ type IndentIO <: IO
 end
 IndentIO(sink::IO) = IndentIO(sink, 0)
 
-enter(io::IO, ::Indent)       = enter(IndentIO(io), indent)
+type Indent; end
+const indent = Indent()
+enter(io::IO,       ::Indent) = enter(IndentIO(io), indent)
 enter(io::IndentIO, ::Indent) = (io.indent += indent_width; io)
 leave(io::IndentIO, ::Indent) = (io.indent -= indent_width; io)
 
@@ -66,51 +41,46 @@ show(io::IndentIO, x::Float64) = print(io, string(x))
 show(io::IndentIO, x::Symbol)  = print(io, string(x))
 
 # ---- @pprint: simple printing convenience macro -----------------------------
-# @pprint(io, args...) expands each argument args[k] in turn into 
-# 
-#     print(io, args[k])
+# @pprint(io, args...) expands into
 #
-# just like print(io, args...), except for that
+#     (@pprint(io, args[1])); (@pprint(io, args[2])); ... etc
 #
-# * [f](args...)  expands into  f(io, args...)
-#   e g @pprint(io, '(', [show](x), ')')
+# and then
 #
-# * [indent]{args...}  expands into  @pprint(io, args...) with args indented
+#     @pprint(io, [f](args...))       ==>  f(io, args...)
+#     @pprint(io, [indent]{args...})  ==>  @pprint(io, args...)   # (indented)
+#     @pprint(io, expression)         ==>  print(io, expression)  # otherwise
+#
+# Example: @pprint(io, '(',[indent]{ 
+#              [show](x), '+', [show](y) 
+#          },')')
 
-quot(ex) = expr(:quote, ex)
+const pp_io = gensym("io")
 
-type PPrint
-    io::Symbol
-    code::Vector
-end
-
-macro pprint(args...)
-    code_pprint(args...)
-end
+macro pprint(args...) code_pprint(args...) end
 function code_pprint(io, args...)
-    io_sym = gensym("io")
-    c = PPrint(io_sym, {:( ($io_sym) = ($io) )})
-    recode_pprint(c, args...)
-    esc(expr(:block, c.code))
+    code = {:( ($pp_io) = ($io) )}
+    recode_pprint(code, args...)
+    esc(expr(:block, code))
 end
 
-recode_pprint(c::PPrint, exs...) = for ex in exs; recode_pprint(c, ex); end
-function recode_pprint(c::PPrint, ex::Expr)
+recode_pprint(code::Vector, exs...) = for e in exs; recode_pprint(code, e); end
+function recode_pprint(code::Vector, ex::Expr)
     head, args = ex.head, ex.args    
     if head === :curly && is_expr(args[1], :vcat, 1)  # e g [indent]{x, '+', y}
         env = args[1].args[1]
-        push(c.code, :( ($c.io) = ($quot(enter))(($c.io),($env)) ))
-        recode_pprint(c, args[2:end]...)
-        push(c.code, :( ($c.io) = ($quot(leave))(($c.io),($env)) ))
+        push(code, :( ($pp_io) = ($expr(:quote, enter))(($pp_io),($env)) ))
+        recode_pprint(code, args[2:end]...)
+        push(code, :( ($pp_io) = ($expr(:quote, leave))(($pp_io),($env)) ))
     elseif head === :call && is_expr(args[1], :vcat, 1) # e g [show](x)
         f = args[1].args[1]
         rest_args = args[2:end]
-        push(c.code, :( ($f)(($c.io), $rest_args...) ))
+        push(code, :( ($f)(($pp_io), $rest_args...) ))
     else                                                # regular printing
-        push(c.code, :( print(($c.io), ($ex)) ))
+        push(code, :( print(($pp_io), ($ex)) ))
     end
 end
-recode_pprint(c::PPrint, ex) = push(c.code, :(print(($c.io), ($ex))))
+recode_pprint(code::Vector, ex) = push(code, :(print(($pp_io), ($ex))))
 
 macro indent(io, body)
     quote
@@ -121,7 +91,29 @@ macro indent(io, body)
     end
 end
 
+# ---- Expr decoding helpers --------------------------------------------------
+
+is_expr(ex, head::Symbol) = (isa(ex, Expr) && (ex.head == head))
+is_expr(ex, head::Symbol, n::Int) = is_expr(ex, head) && length(ex.args) == n
+
+is_linenumber(ex::LineNumberNode) = true
+is_linenumber(ex::Expr)           = is(ex.head, :line)
+is_linenumber(ex)                 = false
+
+is_quoted(ex::QuoteNode) = true
+is_quoted(ex::Expr)      = is_expr(ex, :quote, 1)
+is_quoted(ex)            = false
+
+unquoted(ex::QuoteNode) = ex.value
+unquoted(ex::Expr)      = ex.args[1]
+
 # ---- Expr prettyprinting ----------------------------------------------------
+
+function show_comma_list(io::IO, first, rest...)
+    show(io, first)
+    for arg in rest; print(io, ", "); show(io, arg); end
+end
+show_comma_list(io::IO) = nothing
 
 function show_expr_type(io, ty)
     if !is(ty, Any)
