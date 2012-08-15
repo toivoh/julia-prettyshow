@@ -5,6 +5,9 @@ const show_expr_type = Base.show_expr_type
 export defer_io, defer_print, defer_show, indent, paren_block, comma_list
 
 
+show(io, x) = isa(io,IOStream) ? ccall(:jl_show_any, Void, (Any,Any,), io, x) :
+              print(io, repr(x))
+
 # ---- Deferred IO for formatting etc -----------------------------------------
 
 # Canned io action: print(io, defer_io(f, rest_args...))
