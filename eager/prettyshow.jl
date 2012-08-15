@@ -59,8 +59,7 @@ const pp_io = gensym("io")
 
 macro pprint(args...) code_pprint(args...) end
 function code_pprint(io, args...)
-    ex = recode_pprint(args...)
-    esc(expr(:block, :( ($pp_io) = ($io) ), ex, :nothing))
+    esc(expr(:block, :(($pp_io) = ($io)), recode_pprint(args...), :nothing))
 end
 
 recode_pprint(exs...) = expr(:block, {recode_pprint(ex) for ex in exs})
@@ -68,28 +67,23 @@ function recode_pprint(ex::Expr)
     head, args = ex.head, ex.args    
     if head === :curly && is_expr(args[1], :vcat, 1)  # e g [indent]{x, '+', y}
         env = args[1].args[1]
-        return quote
+        quote
             ($pp_io) = ($expr(:quote, enter))(($pp_io),($env))
             ($recode_pprint(args[2:end]...))
             ($pp_io) = ($expr(:quote, leave))(($pp_io),($env))
         end
     elseif head === :call && is_expr(args[1], :vcat, 1) # e g [show](x)
-        f = args[1].args[1]
-        rest_args = args[2:end]
-        return :( ($f)(($pp_io), $rest_args...) )
-    else                                                # regular printing
-        return :( print(($pp_io), ($ex)) )
-    end
+        f, rest_args = args[1].args[1], args[2:end]
+        :( ($f)(($pp_io), $rest_args...) )
+    else
+        :( print(($pp_io), ($ex)) )                     # regular printing
+    end                                             
 end
-recode_pprint(ex) = :(print(($pp_io), ($ex)))
+recode_pprint(ex) = :(print(($pp_io), ($ex)))           
 
 macro indent(io, body)
-    quote
-        (esc($io)) = enter(($esc(io)), indent)
-        result = ($body)
-        (esc($io)) = leave(($esc(io)), indent)
-        result
-    end
+    io = esc(io)
+    :( ($io)=enter(($io), indent); r=($body); ($io)=leave(($io), indent); r )
 end
 
 # ---- Expr decoding helpers --------------------------------------------------
