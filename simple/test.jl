@@ -1,4 +1,12 @@
 
+load("prettyshow.jl")
+
+module Test
+import Base.*
+import PrettyShow
+import PrettyShow.*
+const is_expr = PrettyShow.is_expr
+
 code = quote
 
 # ---- print/show helpers and markup ------------------------------------------
@@ -193,12 +201,9 @@ show_quoted_expr(io::IO, ex) = print(io, ':', inparens(defer_show(ex)))
 end  # quote
 
 
-require("prettyshow.jl")
-import PrettyShow
-
-const is_expr = PrettyShow.is_expr
-
 for ex in code.args
     print(ex)
     if is_expr(ex, :line); println(); end
 end
+
+end # module Test
