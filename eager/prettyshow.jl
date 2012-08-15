@@ -2,7 +2,7 @@
 module PrettyShow
 import Base.*
 export @pprint, show_comma_list, indent
-const show_expr_type = Base.show_expr_type
+#const show_expr_type = Base.show_expr_type
 
 show(io, x) = isa(io,IOStream) ? ccall(:jl_show_any, Void, (Any,Any,), io, x) :
               print(io, repr(x))
@@ -39,16 +39,16 @@ show_comma_list(io::IO) = nothing
 
 const indent_width = 4
 
+type Indent; end
+const indent = Indent()
+
 type IndentIO <: IO
     sink::IO
     indent::Integer  # current indentation
 end
 IndentIO(sink::IO) = IndentIO(sink, 0)
 
-type Indent; end
-const indent = Indent()
-
-enter(io::IO, ::Indent) = enter(IndentIO(io), indent)
+enter(io::IO, ::Indent)       = enter(IndentIO(io), indent)
 enter(io::IndentIO, ::Indent) = (io.indent += indent_width; io)
 leave(io::IndentIO, ::Indent) = (io.indent -= indent_width; io)
 
@@ -66,6 +66,16 @@ show(io::IndentIO, x::Float64) = print(io, string(x))
 show(io::IndentIO, x::Symbol)  = print(io, string(x))
 
 # ---- @pprint: simple printing convenience macro -----------------------------
+# @pprint(io, args...) expands each argument args[k] in turn into 
+# 
+#     print(io, args[k])
+#
+# just like print(io, args...), except for that
+#
+# * [f](args...)  expands into  f(io, args...)
+#   e g @pprint(io, '(', [show](x), ')')
+#
+# * [indent]{args...}  expands into  @pprint(io, args...) with args indented
 
 quot(ex) = expr(:quote, ex)
 
@@ -87,31 +97,43 @@ end
 recode_pprint(c::PPrint, exs...) = for ex in exs; recode_pprint(c, ex); end
 function recode_pprint(c::PPrint, ex::Expr)
     head, args = ex.head, ex.args    
-    if head === :curly && is_expr(args[1], :vcat, 1)
+    if head === :curly && is_expr(args[1], :vcat, 1)  # e g [indent]{x, '+', y}
         env = args[1].args[1]
         push(c.code, :( ($c.io) = ($quot(enter))(($c.io),($env)) ))
         recode_pprint(c, args[2:end]...)
         push(c.code, :( ($c.io) = ($quot(leave))(($c.io),($env)) ))
-    elseif head === :call && is_expr(args[1], :vcat, 1)
+    elseif head === :call && is_expr(args[1], :vcat, 1) # e g [show](x)
         f = args[1].args[1]
         rest_args = args[2:end]
         push(c.code, :( ($f)(($c.io), $rest_args...) ))
-    else
+    else                                                # regular printing
         push(c.code, :( print(($c.io), ($ex)) ))
     end
 end
-recode_pprint(c::PPrint, ex) = (push(c.code, :(print(($c.io), ($ex))));nothing)
+recode_pprint(c::PPrint, ex) = push(c.code, :(print(($c.io), ($ex))))
 
 macro indent(io, body)
     quote
         (esc($io)) = enter(($esc(io)), indent)
         result = ($body)
         (esc($io)) = leave(($esc(io)), indent)
-        resul
+        result
     end
 end
 
 # ---- Expr prettyprinting ----------------------------------------------------
+
+function show_expr_type(io, ty)
+    if !is(ty, Any)
+        if is(ty, Function)
+            print(io, "::F")
+        elseif is(ty, IntrinsicFunction)
+            print(io, "::I")
+        else
+            print(io, "::$ty")
+        end
+    end
+end
 
 show_linenumber(io::IO, line)       = print(io,"\t#  line ",line,':')
 show_linenumber(io::IO, line, file) = print(io,"\t#  ",file,", line ",line,':')
@@ -175,7 +197,7 @@ function show(io::IO, ex::Expr)
         @pprint(io, [show](args[1]), _expr_calls[head][1], 
               [indent]{[show_comma_list](args[2:end]...)},
               _expr_calls[head][2])
-    elseif is(head, :comparison) && nargs >= 3 && isodd(nargs)  # :comparison
+    elseif is(head, :comparison) && nargs >= 3 && (nargs&1==1)  # :comparison
         print(io, '(')
         @indent io (for arg in args; show(io, arg); end)
         print(io, ')')
