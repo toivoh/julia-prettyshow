@@ -11,7 +11,7 @@ macro expect(pred)
     :( ($esc(pred)) ? nothing : error($"error: expected $pred == true") )
 end
 
-# ---- IndentIO: indentation aware wrapper IO ---------------------------------
+## Indentation aware wrapper IO ##
 
 const indent_width = 4
 
@@ -45,12 +45,13 @@ show(io::IndentIO, x::Float32) = print(io, string(x))
 show(io::IndentIO, x::Float64) = print(io, string(x))
 show(io::IndentIO, x::Symbol)  = print(io, string(x))
 
-# ---- @pprint: simple printing convenience macro -----------------------------
+## Simple printing convenience macro ##
+
 # @pprint(io, args...) expands into
 #
 #     (@pprint(io, args[1])); (@pprint(io, args[2])); ... etc
 #
-# and then
+# and then according to
 #
 #     @pprint(io, [f](args...))       ==>  f(io, args...)
 #     @pprint(io, [indent]{args...})  ==>  @pprint(io, args...)   # (indented)
@@ -74,19 +75,19 @@ function recode_pprint(ex::Expr)
         env = args[1].args[1]
         quote
             ($pp_io) = ($expr(:quote, enter))(($pp_io),($env))
-            ($recode_pprint(args[2:end]...))
+            ($recode_pprint(args[2:end]...))  # ==> e g @pprint(io, x, '+', y)
             ($pp_io) = ($expr(:quote, leave))(($pp_io),($env))
         end
     elseif head === :call && is_expr(args[1], :vcat, 1) # e g [show](x)
         f, rest_args = args[1].args[1], args[2:end]
-        :( ($f)(($pp_io), $rest_args...) )
+        :( ($f)(($pp_io), $rest_args...) )    # ==> e g show(io, x)
     else
         :( print(($pp_io), ($ex)) )                     # regular printing
     end                                             
 end
-recode_pprint(ex) = :(print(($pp_io), ($ex)))           
+recode_pprint(ex) = :(print(($pp_io), ($ex)))           # regular printing
 
-# ---- Expr decoding helpers --------------------------------------------------
+## AST decoding helpers ##
 
 is_expr(ex, head::Symbol) = (isa(ex, Expr) && (ex.head == head))
 is_expr(ex, head::Symbol, n::Int) = is_expr(ex, head) && length(ex.args) == n
@@ -102,7 +103,7 @@ is_quoted(ex)            = false
 unquoted(ex::QuoteNode) = ex.value
 unquoted(ex::Expr)      = ex.args[1]
 
-# ---- Expr prettyprinting ----------------------------------------------------
+## AST prettyprinting ##
 
 function show_comma_list(io::IO, first, rest...)
     show(io, first)
