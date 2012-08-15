@@ -21,15 +21,20 @@ type IndentIO <: IO
 end
 IndentIO(sink::IO) = IndentIO(sink, 0)
 
+function print(io::IndentIO, c::Char)
+    print(io.sink, c)
+    if (c == '\n'); print(io.sink, " "^io.indent); end
+end
+
 type Indent; end
 const indent = Indent()
 enter(io::IO,       ::Indent) = enter(IndentIO(io), indent)
 enter(io::IndentIO, ::Indent) = (io.indent += indent_width; io)
 leave(io::IndentIO, ::Indent) = (io.indent -= indent_width; io)
 
-function print(io::IndentIO, c::Char)
-    print(io.sink, c)
-    if (c == '\n'); print(io.sink, " "^io.indent); end
+macro indent(io, body)
+    io = esc(io)
+    :( ($io)=enter(($io), indent); r=($body); ($io)=leave(($io), indent); r )
 end
 
 # Capture character output and send it to print(::IndentIO, ::Char)
@@ -80,11 +85,6 @@ function recode_pprint(ex::Expr)
     end                                             
 end
 recode_pprint(ex) = :(print(($pp_io), ($ex)))           
-
-macro indent(io, body)
-    io = esc(io)
-    :( ($io)=enter(($io), indent); r=($body); ($io)=leave(($io), indent); r )
-end
 
 # ---- Expr decoding helpers --------------------------------------------------
 
