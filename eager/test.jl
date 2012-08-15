@@ -206,4 +206,6 @@ for ex in code.args
     if is_expr(ex, :line); println(); end
 end
 
+export @pprint
+
 end # module Test
