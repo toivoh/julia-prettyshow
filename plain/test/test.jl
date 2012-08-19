@@ -1,6 +1,13 @@
 
-#module PrettyShow
-#import Base.*
+module Test
+import Base.*
+#import PrettyShow
+
+load("prettyshow.jl")
+
+code = quote
+module PrettyShow
+import Base.*
 const show_expr_type = Base.show_expr_type
 
 
@@ -60,7 +67,7 @@ function show_block(io::IO, head, args::Vector, body, indent::Int)
     print(io, head, ' ')
     show_list(io, args, ", ", indent)
 
-    ind = is(head, :module) ? indent : indent + indent_width
+    ind = indent + indent_width
     exs = (is_expr(body, :block) || is_expr(body, :body)) ? body.args : {body}
     for ex in exs
         if !is_linenumber(ex); print(io, '\n', " "^ind); end
@@ -160,9 +167,11 @@ function show_unquoted(io::IO, ex::Expr, indent::Int)
         show_block(io, "let", args[2:end], args[1], indent); print(io, "end")
     elseif is(head, :block) || is(head, :body)
         show_block(io, "begin", ex, indent); print(io, "end")
-    elseif contains([:for, :while, :function, :if, :type, :module], head) &&
-      nargs == 2
+    elseif contains([:for, :while, :function, :if, :type], head) && nargs == 2
         show_block(io, head, args[1], args[2], indent); print(io, "end")
+    elseif is(head, :module) && nargs == 2
+        show_block(io, head, args[1], args[2], indent-indent_width);
+        print(io, "end")
     elseif is(head, :quote) && nargs == 1
         show_quoted(io, args[1], indent)
     elseif is(head, :null)
@@ -186,4 +195,9 @@ function show_unquoted(io::IO, ex::Expr, indent::Int)
     show_expr_type(io, ex.typ)
 end
 
-#end # module
+end # module
+end # quote
+
+println(code)
+
+end
