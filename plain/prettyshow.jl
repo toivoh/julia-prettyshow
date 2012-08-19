@@ -29,6 +29,26 @@ show_quoted(  io::IO, x, indent) = show(io, x)
 show_unquoted(io::IO, x)         = show_unquoted(io, x, 0)
 show_unquoted(io::IO, x, indent) = show(io, x)
 
+show_linenumber(io::IO, line)       = print(io,"\t#  line ",line,':')
+show_linenumber(io::IO, line, file) = print(io,"\t#  ",file,", line ",line,':')
+
+typealias ExprNode Union(SymbolNode, LineNumberNode, LabelNode, GotoNode,
+                         TopNode, QuoteNode)
+
+show(io::IO, ex::ExprNode) = show_quoted(io, ex)
+
+show_unquoted(io::IO, ex::ExprNode, indent::Int) = show_unquoted(io, ex)
+show_unquoted(io::IO, e::LineNumberNode) = show_linenumber(io, e.line)
+show_unquoted(io::IO, e::LabelNode)      = print(io, e.label, ": ")
+show_unquoted(io::IO, e::GotoNode)       = print(io, "goto ", e.label)
+show_unquoted(io::IO, e::TopNode)        = print(io, "top(", e.name, ')')
+show_unquoted(io::IO, e::QuoteNode, ind::Int) = show_quoted(io, e.value, ind)
+function show_unquoted(io::IO, e::SymbolNode) 
+    print(io, e.name)
+    show_expr_type(io, e.typ)
+end
+
+
 const _expr_parens = {:tuple=>('(',')'), :vcat=>('[',']'), :cell1d=>('{','}')}
 
 show(io::IO, ex::Expr) = show_quoted(io, ex)
@@ -95,9 +115,6 @@ function show_enclosed_list(io::IO, op, items, sep, cl, indent)
     print(io, op); show_list(io, items, sep, indent); print(io, cl)
 end
 
-
-show_linenumber(io::IO, line)       = print(io,"\t#  line ",line,':')
-show_linenumber(io::IO, line, file) = print(io,"\t#  ",file,", line ",line,':')
 
 const _expr_infix_wide = Set(:(=), :(+=), :(-=), :(*=), :(/=), :(\=), 
     :(&=), :(|=), :($=), :(>>>=), :(>>=), :(<<=), :(&&), :(||))
