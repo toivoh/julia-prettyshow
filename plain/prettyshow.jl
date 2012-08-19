@@ -7,7 +7,7 @@ const indent_width = 4
 
 ## AST decoding helpers ##
 
-is_expr(ex, head::Symbol) = (isa(ex, Expr) && (ex.head == head))
+is_expr(ex, head::Symbol)         = (isa(ex, Expr) && (ex.head == head))
 is_expr(ex, head::Symbol, n::Int) = is_expr(ex, head) && length(ex.args) == n
 
 is_linenumber(ex::LineNumberNode) = true
@@ -35,8 +35,11 @@ function show_expr_type(io::IO, ty)
     end
 end
 
+# show AST as quoted/unquoted respectively
+show_quoted(  x)                 = show_quoted(OUTPUT_STREAM, x)
 show_quoted(  io::IO, x)         = show_quoted(io, x, 0)
 show_quoted(  io::IO, x, indent) = show(io, x)
+show_unquoted(x)                 = show_quoted(OUTPUT_STREAM, x)
 show_unquoted(io::IO, x)         = show_unquoted(io, x, 0)
 show_unquoted(io::IO, x, indent) = show(io, x)
 
@@ -45,7 +48,6 @@ show_linenumber(io::IO, line, file) = print(io,"\t#  ",file,", line ",line,':')
 
 typealias ExprNode Union(SymbolNode, LineNumberNode, LabelNode, GotoNode,
                          TopNode, QuoteNode)
-
 show(io::IO, ex::ExprNode) = show_quoted(io, ex)
 
 show_unquoted(io::IO, ex::ExprNode, indent::Int) = show_unquoted(io, ex)
@@ -59,11 +61,9 @@ function show_unquoted(io::IO, e::SymbolNode)
     show_expr_type(io, e.typ)
 end
 
-
 const _expr_parens = {:tuple=>('(',')'), :vcat=>('[',']'), :cell1d=>('{','}')}
 
 show(io::IO, ex::Expr) = show_quoted(io, ex)
-# show ex as quoted
 function show_quoted(io::IO, ex::Expr, indent::Int)
     if is(ex.head, :block) || is(ex.head, :body)
         show_block(io, "quote", ex, indent); print(io, "end")
@@ -86,7 +86,9 @@ function default_show_quoted(io::IO, ex, indent::Int)
     print(io, " )")
 end
 
-# used to show if/let/for/etc blocks
+## Expr printing helpers ##
+
+# show a block like if/for/etc
 function show_block(io::IO, head, args::Vector, body, indent::Int)
     print(io, head, ' ')
     show_list(io, args, ", ", indent)
@@ -102,10 +104,6 @@ end
 show_block(io::IO,head,    block,i::Int) = show_block(io,head,{},   block,i)
 show_block(io::IO,head,arg,block,i::Int) = show_block(io,head,{arg},block,i)
 
-# show the body of a :block
-function show_body(io::IO, ex, indent::Int)
-end
-
 # show an indented list
 function show_list(io::IO, items, sep, indent::Int)
     n = length(items)
@@ -117,18 +115,18 @@ function show_list(io::IO, items, sep, indent::Int)
         show_unquoted(io, item, indent)        
     end
 end
-# show an indented list inside parens op, cl
+# show an indented list inside the parens (op, cl)
 function show_enclosed_list(io::IO, op, items, sep, cl, indent)
     print(io, op); show_list(io, items, sep, indent); print(io, cl)
 end
 
+## Unquoted Expr printing ##
 
 const _expr_infix_wide = Set(:(=), :(+=), :(-=), :(*=), :(/=), :(\=), 
     :(&=), :(|=), :($=), :(>>>=), :(>>=), :(<<=), :(&&), :(||))
 const _expr_infix = Set(:(:), :(<:), :(->), :(=>), symbol("::"))
-const _expr_calls  = {:call =>('(',')'), :ref =>('[',']'), :curly =>('{','}')}
+const _expr_calls = {:call =>('(',')'), :ref =>('[',']'), :curly =>('{','}')}
 
-# show ex as unquoted
 function show_unquoted(io::IO, ex::Expr, indent::Int)
     head, args, nargs = ex.head, ex.args, length(ex.args)
 
