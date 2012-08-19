@@ -99,12 +99,8 @@ function show_block(io::IO, head, args::Vector, body, indent::Int)
     end
     print(io, '\n', " "^indent)
 end
-function show_block(io::IO, head, block, indent::Int)
-    show_block(io, head, {}, block, indent)
-end
-function show_block(io::IO, head, arg, block, indent::Int)
-    show_block(io, head, {arg}, block, indent)
-end
+show_block(io::IO,head,    block,i::Int) = show_block(io,head,{},   block,i)
+show_block(io::IO,head,arg,block,i::Int) = show_block(io,head,{arg},block,i)
 
 # show the body of a :block
 function show_body(io::IO, ex, indent::Int)
