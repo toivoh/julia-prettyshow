@@ -1,7 +1,6 @@
 
 #module PrettyShow
 #import Base.*
-const show_expr_type = Base.show_expr_type
 
 
 const indent_width = 4
@@ -23,6 +22,18 @@ unquoted(ex::QuoteNode) = ex.value
 unquoted(ex::Expr)      = ex.args[1]
 
 ## AST printing ##
+
+function show_expr_type(io::IO, ty)
+    if !is(ty, Any)
+        if is(ty, Function)
+            print(io, "::F")
+        elseif is(ty, IntrinsicFunction)
+            print(io, "::I")
+        else
+            print(io, "::$ty")
+        end
+    end
+end
 
 show_quoted(  io::IO, x)         = show_quoted(io, x, 0)
 show_quoted(  io::IO, x, indent) = show(io, x)
