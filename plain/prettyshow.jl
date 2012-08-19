@@ -2,9 +2,6 @@
 #module PrettyShow
 #import Base.*
 
-
-const indent_width = 4
-
 ## AST decoding helpers ##
 
 is_expr(ex, head::Symbol)         = (isa(ex, Expr) && (ex.head == head))
@@ -18,10 +15,12 @@ is_quoted(ex::QuoteNode) = true
 is_quoted(ex::Expr)      = is_expr(ex, :quote, 1)
 is_quoted(ex)            = false
 
-unquoted(ex::QuoteNode) = ex.value
-unquoted(ex::Expr)      = ex.args[1]
+unquoted(ex::QuoteNode)  = ex.value
+unquoted(ex::Expr)       = ex.args[1]
 
 ## AST printing ##
+
+const indent_width = 4
 
 function show_expr_type(io::IO, ty)
     if !is(ty, Any)
@@ -39,7 +38,7 @@ end
 show_quoted(  x)                 = show_quoted(OUTPUT_STREAM, x)
 show_quoted(  io::IO, x)         = show_quoted(io, x, 0)
 show_quoted(  io::IO, x, indent) = show(io, x)
-show_unquoted(x)                 = show_quoted(OUTPUT_STREAM, x)
+show_unquoted(x)                 = show_unquoted(OUTPUT_STREAM, x)
 show_unquoted(io::IO, x)         = show_unquoted(io, x, 0)
 show_unquoted(io::IO, x, indent) = show(io, x)
 
@@ -51,14 +50,14 @@ typealias ExprNode Union(SymbolNode, LineNumberNode, LabelNode, GotoNode,
 show(io::IO, ex::ExprNode) = show_quoted(io, ex)
 
 show_unquoted(io::IO, ex::ExprNode, indent::Int) = show_unquoted(io, ex)
-show_unquoted(io::IO, e::LineNumberNode) = show_linenumber(io, e.line)
-show_unquoted(io::IO, e::LabelNode)      = print(io, e.label, ": ")
-show_unquoted(io::IO, e::GotoNode)       = print(io, "goto ", e.label)
-show_unquoted(io::IO, e::TopNode)        = print(io, "top(", e.name, ')')
-show_unquoted(io::IO, e::QuoteNode, ind::Int) = show_quoted(io, e.value, ind)
-function show_unquoted(io::IO, e::SymbolNode) 
-    print(io, e.name)
-    show_expr_type(io, e.typ)
+show_unquoted(io::IO, ex::LineNumberNode) = show_linenumber(io, ex.line)
+show_unquoted(io::IO, ex::LabelNode)      = print(io, ex.label, ": ")
+show_unquoted(io::IO, ex::GotoNode)       = print(io, "goto ", ex.label)
+show_unquoted(io::IO, ex::TopNode)        = print(io, "top(", ex.name, ')')
+show_unquoted(io::IO, ex::QuoteNode, ind::Int) = show_quoted(io, ex.value, ind)
+function show_unquoted(io::IO, ex::SymbolNode) 
+    print(io, ex.name)
+    show_expr_type(io, ex.typ)
 end
 
 const _expr_parens = {:tuple=>('(',')'), :vcat=>('[',']'), :cell1d=>('{','}')}
@@ -86,9 +85,9 @@ function default_show_quoted(io::IO, ex, indent::Int)
     print(io, " )")
 end
 
-## Expr printing helpers ##
+## AST printing helpers ##
 
-# show a block like if/for/etc
+# show a block, e g if/for/etc
 function show_block(io::IO, head, args::Vector, body, indent::Int)
     print(io, head, ' ')
     show_list(io, args, ", ", indent)
@@ -120,7 +119,7 @@ function show_enclosed_list(io::IO, op, items, sep, cl, indent)
     print(io, op); show_list(io, items, sep, indent); print(io, cl)
 end
 
-## Unquoted Expr printing ##
+## Core AST printing ##
 
 const _expr_infix_wide = Set(:(=), :(+=), :(-=), :(*=), :(/=), :(\=), 
     :(&=), :(|=), :($=), :(>>>=), :(>>=), :(<<=), :(&&), :(||))
@@ -148,7 +147,7 @@ function show_unquoted(io::IO, ex::Expr, indent::Int)
         op, cl = _expr_parens[head]
         print(io, op)
         show_list(io, args, ", ", indent)
-        if is(head, :tuple); print(io, ','); end
+        if is(head, :tuple) && nargs == 1; print(io, ','); end
         print(io, cl)
     elseif has(_expr_calls, head) && nargs >= 1  # :call/:ref/:curly
         op, cl = _expr_calls[head]
