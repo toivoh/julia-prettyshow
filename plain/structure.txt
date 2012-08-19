@@ -1,0 +1,34 @@
+
+Decoding helpers: is_expr etc
+
+->show_expr_type
+
+show_quoted/_unquoted general
+
+->show_linenumber
+
+show_unquoted(ExprNode)
+
+->_expr_parens
+
+show_quoted(Expr/Symbol/Any)
+show_block
+show_list
+_expr_infix, _expr_calls
+show_unquoted(Expr)
+
+
+
+Decoding helpers: is_expr etc	# används till allt
+
+show_quoted/_unquoted general	# ingången från show()
+show_unquoted(ExprNode)
+show_quoted(Expr/Symbol/Any)
+->show_expr_type
+->show_linenumber
+show_block
+show_list
+_expr_infix, _expr_calls
+_expr_parens
+show_unquoted(Expr)
+
