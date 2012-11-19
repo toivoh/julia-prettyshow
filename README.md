@@ -3,7 +3,8 @@ julia-prettyshow: pretty-printing in Julia
 
 This module provides simple pretty printing facilities.
 So far, there is some base functionality for indentation etc,
-and a `pshow` (pretty `show`) implementation for julia AST:s.
+and a `pshow` (pretty `show`) implementation for julia AST:s.   
+**Edit:** The AST printing functionality has been simplified and merged into Julia.
 
 Usage
 -----
